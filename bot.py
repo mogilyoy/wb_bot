@@ -3,7 +3,9 @@ from config import bot_token, wb_api
 import markups
 from wb_api import WbApi
 import beauty
-
+import threading
+import time
+from collections import deque
 
 bot = telebot.TeleBot(token=bot_token)
 wb = WbApi(wb_api)
@@ -39,13 +41,21 @@ def callbacks(callback):
             )
 
     if callback.data == "active_supplies":
-        active_supply = wb.active_supplies()["supplies"][0]["supplyId"]
-        bot.edit_message_text(
-            chat_id=callback.from_user.id,
-            message_id=callback.message.message_id,
-            text=f"Активные поставки: {active_supply}",
-            reply_markup=markups.make_new_supply(),
-        )
+        try:
+            active_supply = wb.active_supplies()["supplies"][0]["supplyId"]
+            bot.edit_message_text(
+                chat_id=callback.from_user.id,
+                message_id=callback.message.message_id,
+                text=f"Активные поставки: {active_supply}",
+                reply_markup=markups.make_new_supply(),
+            )
+        except IndexError:
+            bot.edit_message_text(
+                chat_id=callback.from_user.id,
+                message_id=callback.message.message_id,
+                text="Нет активных поставок",
+                reply_markup=markups.menu(),
+            )
 
     if callback.data == "show_orders_st1":
         orders = wb.get_orders(status=1)
@@ -137,7 +147,7 @@ def callbacks(callback):
             if order_list:
                 print(wb.put_orders_in_supply(supply_id, order_list))
                 bot.edit_message_text(
-                    "Товар успешно ",
+                    "Товар успешно добавлен в поставку",
                     callback.from_user.id,
                     callback.message.message_id,
                     reply_markup=markups.print_menu(),
@@ -191,7 +201,7 @@ def callbacks(callback):
 
         except IndexError:
             bot.edit_message_text(
-                "Нет активной поставки, создайте поставку",
+                "Нет активной поставочки, создайте поставку",
                 callback.from_user.id,
                 callback.message.message_id,
                 reply_markup=markups.menu(),
@@ -230,4 +240,30 @@ def callbacks(callback):
         )
 
 
-bot.polling(non_stop=True)
+def new_orders():
+    while True:
+        new = wb.get_orders(status = 0)
+        user_list = [356366758, 726596018]
+        f = deque(maxlen=10)
+        if new['orders']['total'] != f[-1] and new['orders']['total'] != 0:
+            message = beauty.beautiful_new_order_messages(new)
+            for user in user_list:
+                bot.send_message(
+                    chat_id=user,
+                    text=message,
+                    reply_markup=markups.new_order_menu(),
+                )
+            
+
+# @bot.message_handler(func = lambda message: True)
+# def mes(message):
+#     print(message)
+
+if __name__ == '__main__':
+    # bot.polling(non_stop= True)
+    a = threading.Thread(target = new_orders)
+    b = threading.Thread(target = bot.polling, args=({'non_stop': True}))
+    b.start()
+    time.sleep(2)
+    a.start()
+    

@@ -4,6 +4,7 @@ import time
 import datetime
 from rfc3339 import rfc3339
 import base64
+from config import wb_api
 
 # from config import wb_api
 
@@ -207,6 +208,6 @@ class WbApi:
         return ord_list
 
 
-# if __name__ == '__main__':
-    # wb = WbApi(wb_api)
-    # print(wb.order_stickers_pdf([321613700, 321189906, 321166917, 321118118, 315737132, 314252478, 314252469, 313446249, 313423622]))
+if __name__ == '__main__':
+    wb = WbApi(wb_api)
+    print(wb.get_orders(status = 0))
